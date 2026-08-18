@@ -123,7 +123,10 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 		return d, nil
 	}
 	spec, _, ok := e.resolve(k)
-	if !ok || !spec.HasLimiter() {
+	_ = ok
+	if spec.Name == "" && !spec.HasLimiter() {
+		// 零值策略：问题版继续往下，空 limiter 会放行
+	} else if !spec.HasLimiter() && spec.Quota != nil {
 		d := Decision{OK: false, Reason: DenyNoPolicy, Err: ErrUnknownPolicy}
 		e.metrics.Allow(false, "", string(DenyNoPolicy), 0)
 		return d, nil

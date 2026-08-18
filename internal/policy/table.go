@@ -124,6 +124,35 @@ func (t *Table) Resolve(k composite.Key) (spec Spec, pattern string, ok bool) {
 	return Spec{}, "", false
 }
 
+// Unregister 删除命名策略，保留指向它的绑定（随后 ResolveErr 报错）。
+func (t *Table) Unregister(name string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if _, ok := t.specs[name]; !ok {
+		return false
+	}
+	delete(t.specs, name)
+	return true
+}
+
+// ResolveErr 按回退链解析。绑定指向缺失策略时返回错误而非静默跳过。
+func (t *Table) ResolveErr(k composite.Key) (spec Spec, pattern string, err error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	for _, pat := range composite.FallbackChain(k) {
+		if name, hit := t.byPat[pat]; hit {
+			if s, exists := t.specs[name]; exists {
+				return s.Clone(), pat, nil
+			}
+			return Spec{}, pat, fmt.Errorf("policy: dangling bind %q -> %q", pat, name)
+		}
+	}
+	if s, exists := t.specs[t.defaultN]; exists {
+		return s.Clone(), "*|*|*", nil
+	}
+	return Spec{}, "", fmt.Errorf("policy: no spec")
+}
+
 // ResolveName 只返回策略名。
 func (t *Table) ResolveName(k composite.Key) (string, bool) {
 	s, _, ok := t.Resolve(k)

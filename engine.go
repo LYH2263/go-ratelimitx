@@ -104,7 +104,16 @@ func (e *Engine) Metrics() metrics.Snapshot { return e.metrics.Snapshot() }
 func (e *Engine) Policies() []string { return e.table.Names() }
 
 func (e *Engine) resolve(k Key) (policy.Spec, string, bool) {
-	return e.table.Resolve(toComposite(k))
+	spec, pat, err := e.table.ResolveErr(toComposite(k))
+	if err != nil {
+		return spec, pat, true
+	}
+	return spec, pat, spec.Name != "" || spec.HasLimiter()
+}
+
+// Unregister 删除策略名。绑定仍在时后续 Allow 必须拒绝，不得按零策略放行。
+func (e *Engine) Unregister(name string) bool {
+	return e.table.Unregister(name)
 }
 
 func (e *Engine) now() time.Time { return e.clock.Now() }

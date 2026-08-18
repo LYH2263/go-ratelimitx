@@ -44,6 +44,12 @@ var (
 
 	// ErrUnknownAlgorithm 表示不支持的算法名。
 	ErrUnknownAlgorithm = errors.New("ratelimitx: unknown algorithm")
+
+	// ErrClosed 表示引擎已关闭。
+	ErrClosed = errors.New("ratelimitx: engine closed")
+
+	// ErrPersist 表示状态写入持久化层失败。
+	ErrPersist = errors.New("ratelimitx: persist failed")
 )
 
 // ImpossibleWait 表示该请求按当前策略永远无法成功（例如 n > burst）。
