@@ -106,7 +106,9 @@ func (e *Engine) Policies() []string { return e.table.Names() }
 func (e *Engine) resolve(k Key) (policy.Spec, string, bool) {
 	spec, pat, err := e.table.ResolveErr(toComposite(k))
 	if err != nil {
-		return spec, pat, true
+		// 解析失败（悬空绑定或无策略）：返回 false，调用方必须据此拒绝，
+		// 不得按零值 spec 放行。
+		return spec, pat, false
 	}
 	return spec, pat, spec.Name != "" || spec.HasLimiter()
 }

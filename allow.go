@@ -123,10 +123,14 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 		return d, nil
 	}
 	spec, _, ok := e.resolve(k)
-	_ = ok
-	if spec.Name == "" && !spec.HasLimiter() {
-		// 零值策略：问题版继续往下，空 limiter 会放行
-	} else if !spec.HasLimiter() && spec.Quota != nil {
+	if !ok {
+		// 解析失败（悬空绑定或无策略）：禁止按零值策略放行。
+		d := Decision{OK: false, Reason: DenyNoPolicy, Err: ErrUnknownPolicy}
+		e.metrics.Allow(false, "", string(DenyNoPolicy), 0)
+		return d, nil
+	}
+	if !spec.HasLimiter() && spec.Quota != nil {
+		// 仅配额策略：Allow 不处理配额，按未知策略拒绝。
 		d := Decision{OK: false, Reason: DenyNoPolicy, Err: ErrUnknownPolicy}
 		e.metrics.Allow(false, "", string(DenyNoPolicy), 0)
 		return d, nil
