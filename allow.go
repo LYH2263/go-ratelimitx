@@ -1,11 +1,32 @@
 package ratelimitx
 
 import (
+	"context"
 	"time"
 
 	"github.com/LYH2263/go-ratelimitx/internal/policy"
 	"github.com/LYH2263/go-ratelimitx/internal/store"
 )
+
+// Wait 阻塞直到允许 n 个单位或 ctx 结束。已取消的 ctx 必须立刻返回 ctx.Err()。
+func (e *Engine) Wait(ctx context.Context, key string, n int) error {
+	if n <= 0 {
+		return ErrInvalidN
+	}
+	d := e.AllowN(key, n)
+	if d.OK {
+		return nil
+	}
+	if d.Wait == ImpossibleWait {
+		return ErrImpossible
+	}
+	_ = waitDuration(ctx, d.Wait)
+	d = e.AllowN(key, n)
+	if d.OK {
+		return nil
+	}
+	return d.Err
+}
 
 // Allow 尝试消耗 n 个单位。ok 为假时 wait 是建议等待；永远不可能则为 ImpossibleWait。
 func (e *Engine) Allow(key string, n int) (ok bool, wait time.Duration) {
