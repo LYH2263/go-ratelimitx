@@ -119,3 +119,22 @@ func (l *Log) wait(n int, now time.Time, cut int64) time.Duration {
 	}
 	return 0
 }
+
+// Clone 深拷贝窗口。
+func (l *Log) Clone() *Log {
+	if l == nil {
+		return nil
+	}
+	out := *l
+	if l.ring != nil {
+		out.ring = l.ring.Clone()
+	}
+	return &out
+}
+
+// Reset 清空窗口占用。
+func (l *Log) Reset() {
+	if l.ring != nil {
+		l.ring.Reset()
+	}
+}

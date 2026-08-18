@@ -183,3 +183,21 @@ func (c *Counter) wait(n int, now time.Time, est float64) time.Duration {
 
 // Width 返回桶宽。
 func (c *Counter) Width() time.Duration { return c.width }
+
+// Clone 深拷贝计数器。
+func (c *Counter) Clone() *Counter {
+	if c == nil {
+		return nil
+	}
+	out := *c
+	out.counts = append([]int64(nil), c.counts...)
+	return &out
+}
+
+// Reset 清零所有桶。
+func (c *Counter) Reset() {
+	for i := range c.counts {
+		c.counts[i] = 0
+	}
+	c.init = false
+}
