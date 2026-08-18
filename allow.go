@@ -47,7 +47,7 @@ func (e *Engine) Peek(key string) PeekInfo {
 	if st == nil {
 		st = newLimiterState(spec, now)
 	}
-	r := st.allow(1, now)
+	r := st.peek(1, now)
 	e.metrics.Peek()
 	wait := r.wait
 	if r.impossible {

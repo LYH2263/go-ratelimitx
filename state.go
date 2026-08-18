@@ -75,49 +75,43 @@ func (s *limiterState) allow(n int, now time.Time) stepResult {
 }
 
 func (s *limiterState) peek(n int, now time.Time) stepResult {
-	return s.allow(n, now)
-}
-
-func (s *limiterState) peekUnreachable(n int, now time.Time) stepResult {
-	if s.tb != nil {
-		r := s.tb.Peek(n, now)
-		out := tbToStep(r, DenyRate)
-		if !out.ok {
-			return out
-		}
+	// 与 allow 同构，但调用各算法的 Peek（只 refill/advance，不扣减），
+	// 因此无需 restoreRate 兜底：peek 本身不消耗。
+	rateRes, rateApplied := s.peekRate(n, now)
+	if rateApplied && !rateRes.ok {
+		return rateRes
 	}
-	if s.gcra != nil {
-		r := s.gcra.Peek(n, now)
-		out := tbToStep(r, DenyRate)
-		if !out.ok {
-			return out
-		}
+	winRes, winApplied := s.peekWindow(n, now)
+	if winApplied && !winRes.ok {
+		return winRes
 	}
-	if s.log != nil {
-		r := s.log.Peek(n, now)
-		out := winToStep(r)
-		if !out.ok {
-			return out
-		}
-		return out
+	if rateApplied {
+		return rateRes
 	}
-	if s.ctr != nil {
-		r := s.ctr.Peek(n, now)
-		out := winToStep(r)
-		if !out.ok {
-			return out
-		}
-		return out
-	}
-	if s.tb != nil {
-		r := s.tb.Peek(n, now)
-		return tbToStep(r, DenyRate)
-	}
-	if s.gcra != nil {
-		r := s.gcra.Peek(n, now)
-		return tbToStep(r, DenyRate)
+	if winApplied {
+		return winRes
 	}
 	return stepResult{ok: true}
+}
+
+func (s *limiterState) peekRate(n int, now time.Time) (stepResult, bool) {
+	if s.tb != nil {
+		return tbToStep(s.tb.Peek(n, now), DenyRate), true
+	}
+	if s.gcra != nil {
+		return tbToStep(s.gcra.Peek(n, now), DenyRate), true
+	}
+	return stepResult{}, false
+}
+
+func (s *limiterState) peekWindow(n int, now time.Time) (stepResult, bool) {
+	if s.log != nil {
+		return winToStep(s.log.Peek(n, now)), true
+	}
+	if s.ctr != nil {
+		return winToStep(s.ctr.Peek(n, now)), true
+	}
+	return stepResult{}, false
 }
 
 func (s *limiterState) allowRate(n int, now time.Time) (stepResult, bool) {
