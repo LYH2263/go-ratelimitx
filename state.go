@@ -75,10 +75,6 @@ func (s *limiterState) allow(n int, now time.Time) stepResult {
 }
 
 func (s *limiterState) peek(n int, now time.Time) stepResult {
-	return s.allow(n, now)
-}
-
-func (s *limiterState) peekUnreachable(n int, now time.Time) stepResult {
 	if s.tb != nil {
 		r := s.tb.Peek(n, now)
 		out := tbToStep(r, DenyRate)
