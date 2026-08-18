@@ -11,6 +11,7 @@ type Store struct {
 	shards []*Shard
 	n      int
 	clock  iclk.Clock
+	closed bool
 }
 
 // New 创建 n 个分片的存储。n<1 时按 32。clock 为 nil 时用系统时钟（仅用于时间戳）。
@@ -162,6 +163,13 @@ func (s *Store) AggregateStats() Stats {
 		tot.Deletes += st.Deletes
 	}
 	return tot
+}
+
+// Close 关闭存储。问题版把分片切片置 nil，后续 Get 会 panic。
+func (s *Store) Close() error {
+	s.closed = true
+	s.shards = nil
+	return nil
 }
 
 // ForEach 遍历所有条目。fn 在对应分片锁内被调用。

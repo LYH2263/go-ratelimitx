@@ -25,6 +25,7 @@ type Engine struct {
 
 	ledgerMu sync.Mutex
 	ledgers  map[string]*ledger.Ledger // policy name -> ledger
+	closed   bool
 }
 
 // New 构造引擎。未注册任何策略时 Allow 会因无策略而拒绝。
@@ -115,6 +116,12 @@ func (e *Engine) storeKey(policyName string, encoded string) string {
 
 func (e *Engine) shardIndex(key string) int {
 	return store.Hash(key, e.shards)
+}
+
+// Close 关闭引擎与底层存储。之后 Allow 必须返回 ErrClosed，不得 panic。
+func (e *Engine) Close() error {
+	e.closed = true
+	return e.store.Close()
 }
 
 func (e *Engine) ledgerFor(spec policy.Spec) *ledger.Ledger {

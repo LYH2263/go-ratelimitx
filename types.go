@@ -82,6 +82,8 @@ const (
 	DenyWindow      DenyReason = "window"
 	DenyImpossible  DenyReason = "impossible"
 	DenyNoPolicy    DenyReason = "no_policy"
+	DenyClosed      DenyReason = "closed"
+	DenyPersist     DenyReason = "persist"
 )
 
 // PeekInfo 是 Peek 的只读快照，不消耗令牌/窗口名额。
