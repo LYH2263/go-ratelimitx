@@ -118,9 +118,11 @@ func (e *Engine) shardIndex(key string) int {
 	return store.Hash(key, e.shards)
 }
 
-// Close 关闭账本。问题版把 ledgers 置 nil，随后 Charge 会 panic。
+// Close 关闭账本：置 closed 标志并释放 ledgers。此后 Charge/Refund 等写入
+// 返回 ErrClosed，不再 panic。
 func (e *Engine) Close() error {
 	e.ledgerMu.Lock()
+	e.closed = true
 	e.ledgers = nil
 	e.ledgerMu.Unlock()
 	return nil
@@ -132,6 +134,10 @@ func (e *Engine) ledgerFor(spec policy.Spec) *ledger.Ledger {
 	}
 	e.ledgerMu.Lock()
 	defer e.ledgerMu.Unlock()
+	// closed 在同一临界区内判定，避免与 Close 的 nil 赋值竞态后写入 nil map。
+	if e.closed {
+		return nil
+	}
 	if l, ok := e.ledgers[spec.Name]; ok {
 		return l
 	}

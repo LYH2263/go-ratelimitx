@@ -15,6 +15,9 @@ func (e *Engine) Charge(tenant string, units int64) ChargeResult {
 		return ChargeResult{Err: ErrUnknownPolicy}
 	}
 	l := e.ledgerFor(spec)
+	if l == nil { // 引擎已关闭
+		return ChargeResult{Err: ErrClosed}
+	}
 	out := l.Charge(tenant, units)
 	e.metrics.Charge(out.OK, out.SoftHit)
 	res := ChargeResult{
@@ -52,6 +55,10 @@ func (e *Engine) Refund(rec Receipt) RefundResult {
 		return RefundResult{Err: ErrUnknownPolicy}
 	}
 	l := e.ledgerFor(spec)
+	if l == nil { // 引擎已关闭
+		e.metrics.Refund(false)
+		return RefundResult{Err: ErrClosed}
+	}
 	out := l.Refund(ledger.Receipt{
 		ID:     rec.ID,
 		Tenant: rec.Tenant,
@@ -85,6 +92,9 @@ func (e *Engine) PeekQuota(tenant string) (used, remaining, debt int64, ok bool)
 		return 0, 0, 0, false
 	}
 	l := e.ledgerFor(spec)
+	if l == nil { // 引擎已关闭
+		return 0, 0, 0, false
+	}
 	a := l.Peek(tenant)
 	return a.Used, a.Remaining(), a.Debt(), true
 }
@@ -95,5 +105,9 @@ func (e *Engine) ResetQuota(tenant string) {
 	if !hit || spec.Quota == nil {
 		return
 	}
-	e.ledgerFor(spec).Reset(tenant)
+	l := e.ledgerFor(spec)
+	if l == nil { // 引擎已关闭
+		return
+	}
+	l.Reset(tenant)
 }
