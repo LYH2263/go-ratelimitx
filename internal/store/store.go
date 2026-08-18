@@ -53,6 +53,9 @@ func (s *Store) ShardOf(key string) *Shard {
 
 // Get 读取条目。
 func (s *Store) Get(key string) (*Entry, bool) {
+	if s.closed || len(s.shards) == 0 {
+		return nil, false
+	}
 	return s.ShardOf(key).Get(key)
 }
 
@@ -74,6 +77,9 @@ func (s *Store) Delete(key string) bool {
 
 // GetOrCreate 在分片锁内取或建条目。created 表示新建。
 func (s *Store) GetOrCreate(key string, kind Kind, build func() any) (e *Entry, created bool) {
+	if s.closed || len(s.shards) == 0 {
+		return &Entry{Key: key, Kind: kind}, false
+	}
 	sh := s.ShardOf(key)
 	sh.Lock()
 	defer sh.Unlock()
@@ -168,7 +174,6 @@ func (s *Store) AggregateStats() Stats {
 // Close 关闭存储。问题版把分片切片置 nil，后续 Get 会 panic。
 func (s *Store) Close() error {
 	s.closed = true
-	s.shards = nil
 	return nil
 }
 
