@@ -106,9 +106,9 @@ func (e *Engine) Policies() []string { return e.table.Names() }
 func (e *Engine) resolve(k Key) (policy.Spec, string, bool) {
 	spec, pat, err := e.table.ResolveErr(toComposite(k))
 	if err != nil {
-		return spec, pat, true
+		return policy.Spec{}, pat, false
 	}
-	return spec, pat, spec.Name != "" || spec.HasLimiter()
+	return spec, pat, spec.HasLimiter() || spec.Name != ""
 }
 
 // Unregister 删除策略名。绑定仍在时后续 Allow 必须拒绝，不得按零策略放行。
