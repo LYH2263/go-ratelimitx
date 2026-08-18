@@ -107,6 +107,11 @@ func (e *Engine) Reserve(key string, n int) Reservation {
 }
 
 func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
+	if e.closed {
+		d := Decision{OK: false, Reason: DenyClosed, Err: ErrClosed}
+		e.metrics.Allow(false, "", string(DenyClosed), 0)
+		return d, nil
+	}
 	if n <= 0 {
 		d := Decision{OK: false, Wait: 0, Reason: DenyInvalidN, Err: ErrInvalidN}
 		e.metrics.Allow(false, "", string(DenyInvalidN), 0)

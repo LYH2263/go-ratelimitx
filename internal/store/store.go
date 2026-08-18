@@ -165,10 +165,10 @@ func (s *Store) AggregateStats() Stats {
 	return tot
 }
 
-// Close 关闭存储。问题版把分片切片置 nil，后续 Get 会 panic。
+// Close 关闭存储：仅标记 closed，保留分片切片，避免后续 Get/GetOrCreate 因 nil 切片下标而 panic。
+// 关闭后的“拒绝”语义由引擎层（decide 检查 closed 返回 ErrClosed）统一保证。
 func (s *Store) Close() error {
 	s.closed = true
-	s.shards = nil
 	return nil
 }
 
