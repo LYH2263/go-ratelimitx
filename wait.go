@@ -5,11 +5,20 @@ import (
 	"time"
 )
 
-// waitDuration 等待 d。实现未监听 ctx，取消不会打断睡眠。
+// waitDuration 等待 d，但 ctx 取消时立即返回 ctx.Err()。
 func waitDuration(ctx context.Context, d time.Duration) error {
-	_ = ctx
-	if d > 0 {
-		time.Sleep(d)
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	return nil
+	if d <= 0 {
+		return ctx.Err()
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }

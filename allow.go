@@ -10,6 +10,9 @@ import (
 
 // Wait 阻塞直到允许 n 个单位或 ctx 结束。已取消的 ctx 必须立刻返回 ctx.Err()。
 func (e *Engine) Wait(ctx context.Context, key string, n int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if n <= 0 {
 		return ErrInvalidN
 	}
@@ -20,12 +23,17 @@ func (e *Engine) Wait(ctx context.Context, key string, n int) error {
 	if d.Wait == ImpossibleWait {
 		return ErrImpossible
 	}
-	_ = waitDuration(ctx, d.Wait)
+	if err := waitDuration(ctx, d.Wait); err != nil {
+		return err
+	}
 	d = e.AllowN(key, n)
 	if d.OK {
 		return nil
 	}
-	return d.Err
+	if d.Err != nil {
+		return d.Err
+	}
+	return ctx.Err()
 }
 
 // Allow 尝试消耗 n 个单位。ok 为假时 wait 是建议等待；永远不可能则为 ImpossibleWait。
