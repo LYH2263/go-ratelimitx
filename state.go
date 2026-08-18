@@ -10,16 +10,17 @@ import (
 
 // limiterState 保存在分片存储里的算法状态。Rate 与 Window 可同时存在。
 type limiterState struct {
-	algo policy.Algorithm
-	tb   *tokenbucket.State
-	gcra *tokenbucket.GCRAState
-	log  *slidingwin.Log
-	ctr  *slidingwin.Counter
+	algo   policy.Algorithm
+	tb     *tokenbucket.State
+	gcra   *tokenbucket.GCRAState
+	log    *slidingwin.Log
+	ctr    *slidingwin.Counter
+	done   chan struct{}
 }
 
 func newLimiterState(spec policy.Spec, now time.Time) *limiterState {
 	algo := spec.InferAlgo()
-	st := &limiterState{algo: algo}
+	st := &limiterState{algo: algo, done: make(chan struct{})}
 	if spec.Rate != nil {
 		cfg := tokenbucket.Config{PerSecond: spec.Rate.PerSecond, Burst: spec.Rate.Burst}
 		switch algo {
@@ -145,7 +146,12 @@ func (s *limiterState) restoreRate(n int, now time.Time) {
 	}
 }
 
+func (s *limiterState) markClosed() {
+	close(s.done)
+}
+
 func (s *limiterState) restore(n int, now time.Time) {
+	s.markClosed()
 	if s.log != nil {
 		s.log.Restore(n)
 	}
