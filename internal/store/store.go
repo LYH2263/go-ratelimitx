@@ -169,12 +169,12 @@ func (s *Store) AggregateStats() Stats {
 func (s *Store) Attach(b Backend) { s.backend = b }
 
 // Persist 把状态写入后端。无后端时为 no-op。
+// 返回 backend.Set 的错误，调用方据此回滚内存状态。
 func (s *Store) Persist(key string, blob []byte) error {
 	if s.backend == nil {
 		return nil
 	}
-	_ = s.backend.Set(key, blob)
-	return nil
+	return s.backend.Set(key, blob)
 }
 
 // ForEach 遍历所有条目。fn 在对应分片锁内被调用。

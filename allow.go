@@ -2,6 +2,7 @@ package ratelimitx
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/LYH2263/go-ratelimitx/internal/policy"
@@ -144,23 +145,22 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 		ent.Kind = kindOf(spec)
 	}
 
-	var savedGrains uint64
-	var savedLast int64
-	hasTB := st.tb != nil
-	if hasTB {
-		savedGrains = st.tb.Grains
-		savedLast = st.tb.Last
-	}
-
 	var r stepResult
 	if consume {
 		r = st.allow(n, now)
 	} else {
 		r = st.peek(n, now)
 	}
+	// 持久化失败时必须回滚内存扣减，否则 Peek（内存态）与持久态失步。
+	var persistErr error
 	if consume && r.ok {
-		_ = e.store.Persist(sk, persistBlob(st))
-		_, _, _ = savedGrains, savedLast, hasTB
+		persistErr = e.store.Persist(sk, persistBlob(st))
+		if persistErr != nil {
+			st.restore(n, now)
+			r.ok = false
+			r.remaining = st.remainingTokens()
+			r.reason = DenyPersist
+		}
 	}
 	wait := r.wait
 	if r.impossible {
@@ -179,6 +179,9 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 	if r.impossible {
 		d.Err = ErrImpossible
 		d.Reason = DenyImpossible
+	}
+	if persistErr != nil {
+		d.Err = fmt.Errorf("%w: %w", ErrPersist, persistErr)
 	}
 	ent.Touch(now, r.ok)
 	e.metrics.Allow(r.ok, spec.Name, string(d.Reason), wait)
