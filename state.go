@@ -228,6 +228,7 @@ func winToStep(r slidingwin.Result) stepResult {
 
 func (s *limiterState) reset(now time.Time) {
 	s.resetRateFull(now)
+	s.resetWindow()
 }
 
 func (s *limiterState) resetRateFull(now time.Time) {
