@@ -15,7 +15,13 @@ func (e *Engine) Charge(tenant string, units int64) ChargeResult {
 		return ChargeResult{Err: ErrUnknownPolicy}
 	}
 	l := e.ledgerFor(spec)
+	if l == nil {
+		return ChargeResult{Err: ErrClosed}
+	}
 	out := l.Charge(tenant, units)
+	if out.Reason == "closed" {
+		return ChargeResult{Err: ErrClosed}
+	}
 	e.metrics.Charge(out.OK, out.SoftHit)
 	res := ChargeResult{
 		OK:        out.OK,
@@ -52,6 +58,10 @@ func (e *Engine) Refund(rec Receipt) RefundResult {
 		return RefundResult{Err: ErrUnknownPolicy}
 	}
 	l := e.ledgerFor(spec)
+	if l == nil {
+		e.metrics.Refund(false)
+		return RefundResult{Err: ErrClosed}
+	}
 	out := l.Refund(ledger.Receipt{
 		ID:     rec.ID,
 		Tenant: rec.Tenant,
@@ -67,6 +77,8 @@ func (e *Engine) Refund(rec Receipt) RefundResult {
 	}
 	if !out.OK {
 		switch out.Reason {
+		case "closed":
+			res.Err = ErrClosed
 		case "already_refunded":
 			res.Err = ErrReceiptUsed
 		case "tenant_mismatch":

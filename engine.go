@@ -121,7 +121,10 @@ func (e *Engine) shardIndex(key string) int {
 // Close 关闭账本。问题版把 ledgers 置 nil，随后 Charge 会 panic。
 func (e *Engine) Close() error {
 	e.ledgerMu.Lock()
-	e.ledgers = nil
+	e.closed = true
+	for _, l := range e.ledgers {
+		l.Close()
+	}
 	e.ledgerMu.Unlock()
 	return nil
 }
@@ -132,6 +135,15 @@ func (e *Engine) ledgerFor(spec policy.Spec) *ledger.Ledger {
 	}
 	e.ledgerMu.Lock()
 	defer e.ledgerMu.Unlock()
+	if e.closed {
+		if l, ok := e.ledgers[spec.Name]; ok {
+			return l
+		}
+		return nil
+	}
+	if e.ledgers == nil {
+		return nil
+	}
 	if l, ok := e.ledgers[spec.Name]; ok {
 		return l
 	}

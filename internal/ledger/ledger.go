@@ -35,6 +35,7 @@ type Ledger struct {
 	accounts map[string]*Account
 	receipts map[uint64]*receiptState
 	nextID   uint64
+	closed   bool
 }
 
 // New 创建账本。clk 为 nil 时用系统时钟。
@@ -91,6 +92,13 @@ func (l *Ledger) accountLocked(tenant string, now time.Time) *Account {
 	return a
 }
 
+// Close 标记账本关闭。之后 Charge/Refund 必须失败且不得 panic。
+func (l *Ledger) Close() {
+	l.mu.Lock()
+	l.closed = true
+	l.mu.Unlock()
+}
+
 // Charge 扣减 units。units<=0 拒绝。超额在非负债模式下拒绝且 Used 不变。
 func (l *Ledger) Charge(tenant string, units int64) ChargeOut {
 	if tenant == "" {
@@ -101,6 +109,9 @@ func (l *Ledger) Charge(tenant string, units int64) ChargeOut {
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.closed {
+		return ChargeOut{Reason: "closed"}
+	}
 	now := l.clock.Now()
 	a := l.accountLocked(tenant, now)
 	if a.WouldExceed(units) {
@@ -135,6 +146,9 @@ func (l *Ledger) Refund(rec Receipt) RefundOut {
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.closed {
+		return RefundOut{Reason: "closed"}
+	}
 	st, ok := l.receipts[rec.ID]
 	if !ok {
 		return RefundOut{Reason: "unknown_receipt"}
