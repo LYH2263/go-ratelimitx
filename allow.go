@@ -13,6 +13,12 @@ func (e *Engine) Wait(ctx context.Context, key string, n int) error {
 	if n <= 0 {
 		return ErrInvalidN
 	}
+	// 已取消的 ctx 立即失败，不做任何扣减。
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	d := e.AllowN(key, n)
 	if d.OK {
 		return nil
@@ -20,7 +26,9 @@ func (e *Engine) Wait(ctx context.Context, key string, n int) error {
 	if d.Wait == ImpossibleWait {
 		return ErrImpossible
 	}
-	_ = waitDuration(ctx, d.Wait)
+	if err := waitDuration(ctx, d.Wait); err != nil {
+		return err
+	}
 	d = e.AllowN(key, n)
 	if d.OK {
 		return nil
