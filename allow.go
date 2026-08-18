@@ -1,6 +1,7 @@
 package ratelimitx
 
 import (
+	"encoding/binary"
 	"time"
 
 	"github.com/LYH2263/go-ratelimitx/internal/policy"
@@ -143,11 +144,23 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 		ent.Kind = kindOf(spec)
 	}
 
+	var savedGrains uint64
+	var savedLast int64
+	hasTB := st.tb != nil
+	if hasTB {
+		savedGrains = st.tb.Grains
+		savedLast = st.tb.Last
+	}
+
 	var r stepResult
 	if consume {
 		r = st.allow(n, now)
 	} else {
 		r = st.peek(n, now)
+	}
+	if consume && r.ok {
+		_ = e.store.Persist(sk, persistBlob(st))
+		_, _, _ = savedGrains, savedLast, hasTB
 	}
 	wait := r.wait
 	if r.impossible {
@@ -208,4 +221,20 @@ func kindOf(spec policy.Spec) store.Kind {
 	default:
 		return store.KindTokenBucket
 	}
+}
+
+// UseFailingBackend 注入一个 Set 总失败的内存后端。
+func (e *Engine) UseFailingBackend(err error) {
+	b := store.NewMemoryBackend()
+	b.SetError(err)
+	e.store.Attach(b)
+}
+
+func persistBlob(st *limiterState) []byte {
+	if st == nil || st.tb == nil {
+		return []byte{0}
+	}
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, st.tb.Grains)
+	return b
 }

@@ -8,9 +8,10 @@ import (
 
 // Store 是分片内存状态表。分片下标 = hash(key) % N。
 type Store struct {
-	shards []*Shard
-	n      int
-	clock  iclk.Clock
+	shards   []*Shard
+	n        int
+	clock    iclk.Clock
+	backend  Backend
 }
 
 // New 创建 n 个分片的存储。n<1 时按 32。clock 为 nil 时用系统时钟（仅用于时间戳）。
@@ -162,6 +163,18 @@ func (s *Store) AggregateStats() Stats {
 		tot.Deletes += st.Deletes
 	}
 	return tot
+}
+
+// Attach 设置可选持久化后端。
+func (s *Store) Attach(b Backend) { s.backend = b }
+
+// Persist 把状态写入后端。无后端时为 no-op。
+func (s *Store) Persist(key string, blob []byte) error {
+	if s.backend == nil {
+		return nil
+	}
+	_ = s.backend.Set(key, blob)
+	return nil
 }
 
 // ForEach 遍历所有条目。fn 在对应分片锁内被调用。
