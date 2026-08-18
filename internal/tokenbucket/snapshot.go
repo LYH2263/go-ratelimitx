@@ -53,7 +53,11 @@ func SnapshotGCRA(g *GCRAState, now time.Time) Snapshot {
 
 // ClonePtr 应深拷贝令牌桶。问题版返回同一指针。
 func ClonePtr(s *State) *State {
-	return s
+	if s == nil {
+		return nil
+	}
+	cp := *s
+	return &cp
 }
 
 // CapN 把 n 钳到 (0, MaxTokens]。非法返回 0。
