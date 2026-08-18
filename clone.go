@@ -8,7 +8,7 @@ import (
 	"github.com/LYH2263/go-ratelimitx/internal/tokenbucket"
 )
 
-// Clone 返回引擎拷贝。令牌桶指针未脱离，改副本会碰到原引擎。
+// Clone 返回引擎拷贝。令牌桶等算法状态经深拷贝脱离，改副本不会碰到原引擎。
 func (e *Engine) Clone() *Engine {
 	out := &Engine{
 		clock:   e.clock,
