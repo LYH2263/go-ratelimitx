@@ -145,8 +145,20 @@ func (s *limiterState) restoreRate(n int, now time.Time) {
 	}
 }
 
+// restoreWindow 归还窗口名额。Log 弹出最新事件、Counter 从当前桶扣除。
+// 仅在 Reservation.Cancel 路径调用：预留成功时窗口已计入，撤销须同步退还。
+func (s *limiterState) restoreWindow(n int) {
+	if s.log != nil {
+		s.log.Restore(n)
+	}
+	if s.ctr != nil {
+		s.ctr.Restore(n)
+	}
+}
+
 func (s *limiterState) restore(n int, now time.Time) {
 	s.restoreRate(n, now)
+	s.restoreWindow(n)
 }
 
 func (s *limiterState) remainingTokens() float64 {
