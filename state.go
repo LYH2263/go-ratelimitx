@@ -1,6 +1,7 @@
 package ratelimitx
 
 import (
+	"sync"
 	"time"
 
 	"github.com/LYH2263/go-ratelimitx/internal/policy"
@@ -10,12 +11,13 @@ import (
 
 // limiterState 保存在分片存储里的算法状态。Rate 与 Window 可同时存在。
 type limiterState struct {
-	algo   policy.Algorithm
-	tb     *tokenbucket.State
-	gcra   *tokenbucket.GCRAState
-	log    *slidingwin.Log
-	ctr    *slidingwin.Counter
-	done   chan struct{}
+	algo     policy.Algorithm
+	tb       *tokenbucket.State
+	gcra     *tokenbucket.GCRAState
+	log      *slidingwin.Log
+	ctr      *slidingwin.Counter
+	done     chan struct{}
+	closeOnce sync.Once
 }
 
 func newLimiterState(spec policy.Spec, now time.Time) *limiterState {
@@ -147,11 +149,20 @@ func (s *limiterState) restoreRate(n int, now time.Time) {
 }
 
 func (s *limiterState) markClosed() {
-	close(s.done)
+	if s == nil || s.done == nil {
+		return
+	}
+	s.closeOnce.Do(func() { close(s.done) })
 }
 
 func (s *limiterState) restore(n int, now time.Time) {
-	s.markClosed()
+	if s.done != nil {
+		select {
+		case <-s.done:
+			return
+		default:
+		}
+	}
 	if s.log != nil {
 		s.log.Restore(n)
 	}
