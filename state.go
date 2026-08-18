@@ -1,6 +1,7 @@
 package ratelimitx
 
 import (
+	"sync"
 	"time"
 
 	"github.com/LYH2263/go-ratelimitx/internal/policy"
@@ -16,6 +17,7 @@ type limiterState struct {
 	log    *slidingwin.Log
 	ctr    *slidingwin.Counter
 	done   chan struct{}
+	once   sync.Once
 }
 
 func newLimiterState(spec policy.Spec, now time.Time) *limiterState {
@@ -147,7 +149,9 @@ func (s *limiterState) restoreRate(n int, now time.Time) {
 }
 
 func (s *limiterState) markClosed() {
-	close(s.done)
+	s.once.Do(func() {
+		close(s.done)
+	})
 }
 
 func (s *limiterState) restore(n int, now time.Time) {
