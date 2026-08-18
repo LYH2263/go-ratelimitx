@@ -146,12 +146,6 @@ func (s *limiterState) restoreRate(n int, now time.Time) {
 }
 
 func (s *limiterState) restore(n int, now time.Time) {
-	if s.log != nil {
-		s.log.Restore(n)
-	}
-	if s.ctr != nil {
-		s.ctr.Restore(n)
-	}
 	s.restoreRate(n, now)
 }
 
