@@ -119,3 +119,10 @@ func (l *Log) wait(n int, now time.Time, cut int64) time.Duration {
 	}
 	return 0
 }
+
+// Reset 清空窗口占用。
+func (l *Log) Reset() {
+	if l.ring != nil {
+		l.ring.Reset()
+	}
+}

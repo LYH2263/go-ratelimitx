@@ -77,7 +77,12 @@ func (e *Engine) Reset(key string) {
 	}
 	sk := e.storeKey(spec.Name, k.Encode())
 	e.locks.Lock(sk)
-	e.store.Delete(sk)
+	ent, ok := e.store.Get(sk)
+	if ok {
+		if st, _ := ent.Payload.(*limiterState); st != nil {
+			st.reset(e.now())
+		}
+	}
 	e.locks.Unlock(sk)
 	e.metrics.Reset()
 }

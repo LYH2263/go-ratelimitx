@@ -183,3 +183,11 @@ func (c *Counter) wait(n int, now time.Time, est float64) time.Duration {
 
 // Width 返回桶宽。
 func (c *Counter) Width() time.Duration { return c.width }
+
+// Reset 清零所有桶。
+func (c *Counter) Reset() {
+	for i := range c.counts {
+		c.counts[i] = 0
+	}
+	c.init = false
+}

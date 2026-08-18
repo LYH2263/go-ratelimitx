@@ -225,3 +225,26 @@ func winToStep(r slidingwin.Result) stepResult {
 	}
 	return out
 }
+
+func (s *limiterState) reset(now time.Time) {
+	s.resetRateFull(now)
+}
+
+func (s *limiterState) resetRateFull(now time.Time) {
+	if s.tb != nil {
+		s.tb.Grains = s.tb.Burst
+		s.tb.Last = now.UnixNano()
+	}
+	if s.gcra != nil {
+		s.gcra.TAT = now.UnixNano()
+	}
+}
+
+func (s *limiterState) resetWindow() {
+	if s.log != nil {
+		s.log.Reset()
+	}
+	if s.ctr != nil {
+		s.ctr.Reset()
+	}
+}
