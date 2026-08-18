@@ -159,8 +159,21 @@ func (e *Engine) decide(key string, n int, consume bool) (Decision, func()) {
 		r = st.peek(n, now)
 	}
 	if consume && r.ok {
-		_ = e.store.Persist(sk, persistBlob(st))
-		_, _, _ = savedGrains, savedLast, hasTB
+		if err := e.store.Persist(sk, persistBlob(st)); err != nil {
+			if hasTB {
+				st.tb.Grains = savedGrains
+				st.tb.Last = savedLast
+			}
+			d := Decision{
+				OK:     false,
+				Err:    err,
+				Policy: spec.Name,
+				Reason: DenyPersist,
+			}
+			ent.Touch(now, false)
+			e.metrics.Allow(false, spec.Name, string(d.Reason), 0)
+			return d, nil
+		}
 	}
 	wait := r.wait
 	if r.impossible {
